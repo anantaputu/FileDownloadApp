@@ -134,15 +134,34 @@ public class DownloadFrame extends JFrame {
                     "Ekstrak file");
             
             if (choice == 0) {
-                JOptionPane.showMessageDialog(this, 
-                    "Fitur ekstraksi belum digabungkan.\nBagian ini akan dilanjutkan oleh teman saya.", 
-                    "Info", JOptionPane.INFORMATION_MESSAGE);
+                startExtract(target);
             }
         }
         setControlsEnabled(true);
     }
 
-/**========================================================================================== */
+    private void startExtract(File zipFile) {
+        progressBar.setIndeterminate(true);
+        statusLabel.setText("Mengekstrak file...");
+
+        new ExtractWorker(zipFile,
+                destDir -> {
+                    progressBar.setIndeterminate(false);
+                    progressBar.setValue(100);
+                    statusLabel.setText("Ekstraksi selesai.");
+                    setControlsEnabled(true);
+                    JOptionPane.showMessageDialog(this,
+                            "File berhasil diekstrak ke:\n" + destDir.getAbsolutePath(),
+                            "Ekstraksi Selesai", JOptionPane.INFORMATION_MESSAGE);
+                },
+                cause -> {
+                    progressBar.setIndeterminate(false);
+                    statusLabel.setText("Ekstraksi gagal.");
+                    setControlsEnabled(true);
+                    showError("Ekstraksi gagal: " + cause.getMessage());
+                }
+        ).execute();
+    }
 
     private void setControlsEnabled(boolean enabled) {
         downloadButton.setEnabled(enabled);
