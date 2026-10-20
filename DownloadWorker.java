@@ -1,12 +1,12 @@
-import javax.swing.*;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.swing.*;
 
-public class DownloadWorker extends SwingWorker<Void, Long> {
+public class DownloadWorker extends SwingWorker<File, Long> {
 
     private static final long UPDATE_INTERVAL_MS = 100;
 
@@ -14,7 +14,7 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
     private final File target;
     private final BiConsumer<Long, Long> onProgress; 
     private final Runnable onUnknownSize;
-    private final Runnable onSuccess;
+    private final Consumer<File> onSuccess;
     private final Consumer<Throwable> onFailure;
 
     private volatile long totalSize = -1;
@@ -22,7 +22,7 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
     public DownloadWorker(URL url, File target,
                           BiConsumer<Long, Long> onProgress,
                           Runnable onUnknownSize,
-                          Runnable onSuccess,
+                          Consumer<File> onSuccess,
                           Consumer<Throwable> onFailure) {
         this.url = url;
         this.target = target;
@@ -33,12 +33,19 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
     }
 
     @Override
-    protected Void doInBackground() throws Exception {
+    protected File doInBackground() throws Exception {
         HttpURLConnection conn = HttpUtils.openConnection(url);
+        File outputTarget = target;
         try {
             int code = conn.getResponseCode();
             if (code != HttpURLConnection.HTTP_OK) {
                 throw new IOException("Server mengembalikan kode HTTP " + code);
+            }
+
+            String extension = HttpUtils.extensionForContentType(conn.getContentType());
+            if (extension != null && !hasExtension(outputTarget.getName())) {
+                outputTarget = new File(outputTarget.getParentFile(),
+                        outputTarget.getName() + "." + extension);
             }
 
             totalSize = conn.getContentLengthLong();
@@ -53,7 +60,7 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
             int read;
 
             try (InputStream in = conn.getInputStream();
-                 FileOutputStream out = new FileOutputStream(target)) {
+                 FileOutputStream out = new FileOutputStream(outputTarget)) {
                 while ((read = in.read(buffer)) != -1) {
                     out.write(buffer, 0, read);
                     downloaded += read;
@@ -68,12 +75,12 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
             }
             publish(downloaded); 
         } catch (Exception ex) {
-            target.delete(); 
+            outputTarget.delete();
             throw ex;
         } finally {
             conn.disconnect();
         }
-        return null;
+        return outputTarget;
     }
 
     @Override
@@ -85,12 +92,15 @@ public class DownloadWorker extends SwingWorker<Void, Long> {
     @Override
     protected void done() {
         try {
-            get(); 
+            onSuccess.accept(get());
         } catch (Exception ex) {
             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
             onFailure.accept(cause);
-            return;
         }
-        onSuccess.run();
+    }
+
+    private static boolean hasExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot > 0 && dot < fileName.length() - 1;
     }
 }

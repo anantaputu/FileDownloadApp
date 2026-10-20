@@ -87,7 +87,7 @@ public class DownloadFrame extends JFrame {
         new DownloadWorker(url, target,
                 this::onDownloadProgress,
                 this::onDownloadUnknownSize,
-                () -> onDownloadSuccess(target),
+                this::onDownloadSuccess,
                 this::onDownloadFailure
         ).execute();
     }

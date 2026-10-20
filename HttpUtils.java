@@ -3,6 +3,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.Locale;
+
 public final class HttpUtils {
 
     private HttpUtils() {
@@ -41,6 +43,50 @@ public final class HttpUtils {
             name = URLDecoder.decode(name, "UTF-8");
         } catch (UnsupportedEncodingException ignored) {
         }
-        return name.isEmpty() ? "download.bin" : name;
+        return name.isEmpty() ? "download" : name;
+    }
+
+    public static String extensionForContentType(String contentType) {
+        if (contentType == null) {
+            return null;
+        }
+
+        String mediaType = contentType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+        switch (mediaType) {
+            case "video/mp4": return "mp4";
+            case "video/webm": return "webm";
+            case "video/quicktime": return "mov";
+            case "video/x-msvideo": return "avi";
+            case "video/x-matroska": return "mkv";
+            case "video/mpeg": return "mpeg";
+            case "video/3gpp": return "3gp";
+            case "audio/mpeg": return "mp3";
+            case "audio/mp4": return "m4a";
+            case "audio/wav":
+            case "audio/x-wav": return "wav";
+            case "audio/ogg": return "ogg";
+            case "audio/flac": return "flac";
+            case "audio/aac": return "aac";
+            case "image/jpeg": return "jpg";
+            case "image/png": return "png";
+            case "image/gif": return "gif";
+            case "image/webp": return "webp";
+            case "image/bmp": return "bmp";
+            case "image/svg+xml": return "svg";
+            case "application/pdf": return "pdf";
+            case "application/zip": return "zip";
+            case "application/x-7z-compressed": return "7z";
+            case "application/x-rar-compressed": return "rar";
+            case "application/gzip": return "gz";
+            case "application/json": return "json";
+            case "application/xml":
+            case "text/xml": return "xml";
+            case "text/plain": return "txt";
+            case "application/msword": return "doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return "docx";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return "xlsx";
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation": return "pptx";
+            default: return null;
+        }
     }
 }
