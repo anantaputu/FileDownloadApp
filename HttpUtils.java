@@ -36,14 +36,47 @@ public final class HttpUtils {
         }
         throw new IOException("Terlalu banyak redirect");
     }
-    public static String guessFileName(URL url) {
-        String path = url.getPath();
-        String name = path.substring(path.lastIndexOf('/') + 1);
+
+    public static String getFileName(URL url) throws IOException {
+        HttpURLConnection conn = openConnection(url);
         try {
-            name = URLDecoder.decode(name, "UTF-8");
-        } catch (UnsupportedEncodingException ignored) {
+            String disposition = conn.getHeaderField("Content-Disposition");
+            if (disposition != null) {
+                int index = disposition.indexOf("filename=");
+                if (index > 0) {
+                    String name = disposition.substring(index + 9);
+                    if (name.startsWith("\"") && name.endsWith("\"")) {
+                        name = name.substring(1, name.length() - 1);
+                    } else if (name.startsWith("'") && name.endsWith("'")) {
+                        name = name.substring(1, name.length() - 1);
+                    }
+                    return name;
+                }
+            }
+
+            String path = conn.getURL().getPath(); 
+            String name = path.substring(path.lastIndexOf('/') + 1);
+            try {
+                name = URLDecoder.decode(name, "UTF-8");
+            } catch (UnsupportedEncodingException ignored) {
+            }
+            if (name.isEmpty()) {
+                name = "download";
+            }
+
+            if (name.lastIndexOf('.') == -1) {
+                String contentType = conn.getContentType();
+                String ext = extensionForContentType(contentType);
+                if (ext != null) {
+                    name = name + "." + ext;
+                }
+            }
+
+            return name;
+
+        } finally {
+            conn.disconnect();
         }
-        return name.isEmpty() ? "download" : name;
     }
 
     public static String extensionForContentType(String contentType) {

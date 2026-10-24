@@ -51,12 +51,39 @@ public class DownloadFrame extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    private String directLinkConverter(String urlText) {
+        if (urlText.contains("pixeldrain.com/u/")) {
+            return urlText.replace("/u/", "/api/file/");
+        }
+        
+        if (urlText.contains("dropbox.com/") && urlText.endsWith("dl=0")) {
+            return urlText.replace("dl=0", "dl=1");
+        }
+        
+        if (urlText.contains("drive.google.com/file/d/")) {
+            try {
+                String[] parts = urlText.split("/");
+                for (int i = 0; i < parts.length; i++) {
+                    if (parts[i].equals("d") && i + 1 < parts.length) {
+                        String fileId = parts[i + 1];
+                        return "https://drive.google.com/uc?export=download&id=" + fileId;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return urlText;
+    }
+
     private void startDownload() {
         String urlText = urlField.getText().trim();
         if (urlText.isEmpty()) {
             showError("URL tidak boleh kosong.");
             return;
         }
+
+        urlText = directLinkConverter(urlText);
+        urlField.setText(urlText);
 
         URL url;
         try {
@@ -71,19 +98,38 @@ public class DownloadFrame extends JFrame {
             return;
         }
 
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Simpan file sebagai");
-        chooser.setSelectedFile(new File(HttpUtils.guessFileName(url)));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+        setControlsEnabled(false);
+        progressBar.setIndeterminate(true);
+        statusLabel.setText("Mencari informasi file...");
+
+        String fileName;
+        try {
+            fileName = HttpUtils.getFileName(url);
+        } catch (Exception ex) {
+            setControlsEnabled(true);
+            progressBar.setIndeterminate(false);
+            statusLabel.setText("Gagal mendapatkan info file.");
+            showError("Gagal menghubungi server:\n" + ex.getMessage());
             return;
         }
-        File target = chooser.getSelectedFile();
 
-        setControlsEnabled(false);
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Simpan file sebagai");
+        chooser.setSelectedFile(new File(fileName));
+        
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            setControlsEnabled(true);
+            progressBar.setIndeterminate(false);
+            statusLabel.setText("Masukkan URL file, lalu klik Download.");
+            return;
+        }
+        
+        File target = chooser.getSelectedFile();
+        
         progressBar.setIndeterminate(false);
         progressBar.setValue(0);
         statusLabel.setText("Menghubungkan ke server...");
-
+        
         new DownloadWorker(url, target,
                 this::onDownloadProgress,
                 this::onDownloadUnknownSize,
